@@ -1,6 +1,6 @@
 # itwinjs-export-graphics-app
 
-TODO
+Simple Node.js application that exercises IModelDb.exportGraphics on a directory of Snapshot iModels.
 
 ## Prerequisites
 
@@ -8,4 +8,8 @@ TODO
 
 ## Setup
 
-TODO
+```ts
+npm install
+npm run build
+node lib\Main.js -s=<directory containing snapshots>
+```
