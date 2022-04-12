@@ -2,12 +2,11 @@
 * See LICENSE.md in the project root for license terms and full copyright notice.
 *--------------------------------------------------------------------------------------------*/
 
-import { ECSqlStatement, IModelHost, SnapshotDb } from "@itwin/core-backend";
-import { DbResult, Id64Array, Logger, LogLevel } from "@itwin/core-bentley";
-
 import * as fs from "fs";
 import * as path from "path";
 import * as yargs from "yargs";
+import { ECSqlStatement, ExportPartInstanceInfo, IModelHost, SnapshotDb } from "@itwin/core-backend";
+import { DbResult, Id64Array, Id64String, Logger, LogLevel } from "@itwin/core-bentley";
 
 const APP_LOGGER_CATEGORY = "itwinjs-export-graphics-app";
 
@@ -55,16 +54,34 @@ async function exportSnapshot(snapshotFilePath: string) {
   if (elementIdArray.length === 0)
     return;
 
+  const processedParts = new Set<Id64String>();
   const exportStartTime = new Date().getTime();
   const exportChunkSize = 50;
   for (let i = 0; i < elementIdArray.length; i += exportChunkSize) {
+    const partInstanceArray: ExportPartInstanceInfo[] = [];
     iModel.exportGraphics({
       elementIdArray: elementIdArray.slice(i, i + exportChunkSize),
       onGraphics: () => { }, // just exercising mesh generation
       onLineGraphics: () => { }, // just exercising line generation
       chordTol: 0.05, // fine enough to do some work, but not run slowly
       decimationTol: 0.05, // exercise decimation code
+      partInstanceArray,
     });
+    // Only process parts once.
+    for (const partInstance of partInstanceArray) {
+      if (processedParts.has(partInstance.partId))
+        continue;
+      processedParts.add(partInstance.partId);
+      iModel.exportPartGraphics({
+        elementId: partInstance.partId,
+        displayProps: partInstance.displayProps,
+        onPartGraphics: () => { },
+        onPartLineGraphics: () => { },
+        chordTol: 0.05,
+        decimationTol: 0.05,
+      });
+    }
+
     await new Promise((resolve) => setImmediate(resolve)); // let garbage collection run
   }
   Logger.logInfo(APP_LOGGER_CATEGORY, `Exported in ${((new Date().getTime() - exportStartTime)/1000).toFixed(2)}s from ${snapshotFilePath}`);
